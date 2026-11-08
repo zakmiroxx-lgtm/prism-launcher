@@ -9,6 +9,8 @@ jobs:
       matrix:
         os: [windows-latest, ubuntu-latest, macos-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      PYTHONUTF8: 1
     steps:
       - uses: actions/checkout@v4
       - uses: actions/setup-python@v5
@@ -25,7 +27,7 @@ jobs:
           import glob, os, zipfile
           zips = glob.glob("*.zip")
           if not zips:
-              raise SystemExit("В корне репозитория нет .zip файла")
+              raise SystemExit("No .zip file in repo root")
           with zipfile.ZipFile(zips[0]) as z:
               z.extractall("app")
           for root, dirs, files in os.walk("app"):
@@ -33,10 +35,10 @@ jobs:
               if "package.json" in files:
                   with open(os.environ["GITHUB_ENV"], "a") as f:
                       f.write("APP_DIR=" + root.replace("\\", "/") + "\n")
-                  print("Проект найден:", root)
+                  print("Project found:", root)
                   break
           else:
-              raise SystemExit("В архиве нет package.json")
+              raise SystemExit("No package.json in zip")
           PY
 
       - name: Install

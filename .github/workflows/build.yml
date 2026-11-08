@@ -1,0 +1,56 @@
+name: Build launcher
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, ubuntu-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+
+      - name: Unzip project
+        shell: bash
+        run: |
+          python - <<'PY'
+          import glob, os, zipfile
+          zips = glob.glob("*.zip")
+          if not zips:
+              raise SystemExit("В корне репозитория нет .zip файла")
+          with zipfile.ZipFile(zips[0]) as z:
+              z.extractall("app")
+          for root, dirs, files in os.walk("app"):
+              dirs[:] = [d for d in dirs if d != "node_modules"]
+              if "package.json" in files:
+                  with open(os.environ["GITHUB_ENV"], "a") as f:
+                      f.write("APP_DIR=" + root.replace("\\", "/") + "\n")
+                  print("Проект найден:", root)
+                  break
+          else:
+              raise SystemExit("В архиве нет package.json")
+          PY
+
+      - name: Install
+        working-directory: ${{ env.APP_DIR }}
+        run: npm install
+
+      - name: Build
+        working-directory: ${{ env.APP_DIR }}
+        run: npm run dist
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: prism-${{ matrix.os }}
+          path: |
+            ${{ env.APP_DIR }}/dist/*.exe
+            ${{ env.APP_DIR }}/dist/*.AppImage
+            ${{ env.APP_DIR }}/dist/*.zip
